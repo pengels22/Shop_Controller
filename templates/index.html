@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bench Controller</title>
+
+  <!-- Terminal deps -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css">
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client/dist/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+  <script defer src="static/shop.js"></script>
+  <script defer src="static/bench_names.js"></script>
+  <link rel="stylesheet" href="static/global.css" />
+</head>
+
+<body>
+<header>
+  <div class="title-row">
+    <h1>Shop Controller</h1>
+    <div class="status-pill">
+      <span id="dot" class="dot"></span>
+      <span id="statusText">Connecting…</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <!-- Left: Controls -->
+    <section class="card">
+      <h2>Power + Controls</h2>
+      <div class="body">
+        <div class="grid" id="controlsGrid">
+
+          <!-- Bench 1..4 master toggles -->
+          <div class="tile">
+            <div class="left">
+              <div class="name">Bench 1 Rails</div>
+              <div class="desc">Power 5V, 12V, and HV together</div>
+            </div>
+            <label class="switch" title="Bench 1 Rails">
+              <input type="checkbox" id="bench1Master" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="tile">
+            <div class="left">
+              <div class="name">Bench 2 Rails</div>
+              <div class="desc">HV + 12V + 5V together</div>
+            </div>
+            <label class="switch" title="Bench 2 Rails">
+              <input type="checkbox" id="bench2Master" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="tile">
+            <div class="left">
+              <div class="name">Bench 3 Rails</div>
+              <div class="desc">HV + 12V + 5V together</div>
+            </div>
+            <label class="switch" title="Bench 3 Rails">
+              <input type="checkbox" id="bench3Master" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="tile">
+            <div class="left">
+              <div class="name">Bench 4 Rails</div>
+              <div class="desc">HV + 12V + 5V together</div>
+            </div>
+            <label class="switch" title="Bench 4 Rails">
+              <input type="checkbox" id="bench4Master" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Lights -->
+          <div class="tile">
+            <div class="left">
+              <div class="name">Lights</div>
+              
+            </div>
+            <label class="switch" title="Lights">
+              <input type="checkbox" id="lightsToggle" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Air compressor -->
+          <div class="tile">
+            <div class="left">
+              <div class="name">Air Compressor</div>
+            </div>
+            <label class="switch" title="Air Compressor">
+              <input type="checkbox" id="airToggle" />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div style="height: 14px;"></div>
+
+        <div class="row">
+          <button class="btn danger" id="allOffBtn">ALL OFF</button>
+          <button class="btn" id="refreshBtn">Refresh State</button>
+          <button class="btn" id="benchNamesBtn">Rename Projects</button>
+        </div>
+      </div>
+
+      <div class="foot">
+        <span>Backend: <code id="baseUrlLabel">same-origin</code></span>
+        <span>Poll: <code id="pollLabel">1000ms</code></span>
+      </div>
+    </section>
+
+    <!-- Right: Service mode + pressure -->
+    <aside class="card">
+      <h2>Service Mode + Air</h2>
+      <div class="body">
+        <div class="tile" style="flex-direction:column; align-items:stretch;">
+          <div class="row" style="justify-content:space-between;">
+            <div class="left">
+              <div class="name">Air Pressure</div>
+              <div class="desc">Reads <code>/api/air_pressure</code> (if implemented)</div>
+            </div>
+          </div>
+
+          <div class="pressure">
+            <div>
+              <span class="big" id="psiValue">—</span><span class="unit">PSI</span>
+            </div>
+            <div class="meter" aria-label="Pressure Meter">
+              <div id="psiBar"></div>
+            </div>
+            <div class="desc">Range assumes 0–120 PSI (adjust in JS).</div>
+          </div>
+        </div>
+
+        <div style="height: 14px;"></div>
+
+        <div class="tile" style="flex-direction:column; align-items:stretch;">
+          <div class="left" style="margin-bottom:10px;">
+            <div class="name">Service Mode</div>
+            <div class="desc">Kills rails + enables that bench’s local USB port.</div>
+          </div>
+
+          <div class="row" style="justify-content:space-between;">
+            <button class="btn good small svc-btn" data-bench="bench1" id="svc1">Service Bench 1</button>
+            <button class="btn good small svc-btn" data-bench="bench2" id="svc2">Service Bench 2</button>
+          </div>
+          <div style="height:10px;"></div>
+          <div class="row" style="justify-content:space-between;">
+            <button class="btn good small svc-btn" data-bench="bench3" id="svc3">Service Bench 3</button>
+            <!--<button class="btn good small svc-btn" data-bench="bench4" id="svc4">Service Bench 4</button>-->
+          </div>
+
+          <div class="desc" style="margin-top:10px;">
+            Hold for 1 second to toggle ON/OFF.
+          </div>
+        </div>
+      </div>
+
+      <div class="foot">
+        <span>State: <code id="lastUpdate">never</code></span>
+        <span id="lastError" style="color: var(--muted);">—</span>
+      </div>
+    </aside>
+
+    <!-- Bottom: Terminal -->
+    <section class="card" style="grid-column: 1 / -1;">
+      <h2 style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <span>Terminal</span>
+        <span class="row" style="gap:8px;">
+          <button class="btn small" id="termClearBtn">Clear</button>
+          <button class="btn small" id="termReconnectBtn">Reconnect</button>
+        </span>
+      </h2>
+
+      <div class="body" style="padding:0;">
+        <div id="terminalHost" class="terminal-host" aria-label="Terminal"></div>
+      </div>
+
+      <div class="foot">
+        <span>Shell: <code>/bin/bash</code></span>
+        <span id="termStatus" style="color: var(--muted);">—</span>
+      </div>
+    </section>
+
+  </div>
+</main>
+<!-- Bench Project Names Modal -->
+<div id="benchNamesBackdrop" class="modal-backdrop" hidden></div>
+
+<div id="benchNamesModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="benchNamesTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="benchNamesTitle">Bench Project Names</h3>
+      <button class="icon-btn" id="benchNamesClose" aria-label="Close">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <p class="muted">These update the Bench 1–4 description lines (stored in this browser).</p>
+
+      <div class="form-grid">
+        <label>
+          <span>Bench 1</span>
+          <input id="benchName1" type="text" placeholder="e.g., ROV Dock Controller" />
+        </label>
+
+        <label>
+          <span>Bench 2</span>
+          <input id="benchName2" type="text" placeholder="e.g., USB Switcher PCB" />
+        </label>
+
+        <label>
+          <span>Bench 3</span>
+          <input id="benchName3" type="text" placeholder="e.g., Yard Controller" />
+        </label>
+
+        <label>
+          <span>Bench 4</span>
+          <input id="benchName4" type="text" placeholder="e.g., RP2040 Prototype" />
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn" id="benchNamesCancel">Cancel</button>
+      <button class="btn danger" id="benchNamesClear">Clear</button>
+      <button class="btn good" id="benchNamesSave">Save</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
